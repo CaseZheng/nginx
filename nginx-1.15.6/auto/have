@@ -1,0 +1,13 @@
+
+# Copyright (C) Igor Sysoev
+# Copyright (C) Nginx, Inc.
+
+
+#写宏定义到objs/ngx_auto_config.h中
+cat << END >> $NGX_AUTO_CONFIG_H
+
+#ifndef $have
+#define $have  1
+#endif
+
+END

@@ -1,0 +1,167 @@
+#!/bin/sh
+
+# Copyright (C) Igor Sysoev
+# Copyright (C) Nginx, Inc.
+
+
+LC_ALL=C
+export LC_ALL
+
+#auto/options脚本处理configure命令的参数,定义后续工作将用到的变量,然后根据本次参数以及默认值设置变量的值
+. auto/options
+#auto/init初始化后续将产生的文件的路径
+. auto/init
+#auto/sources分析nginx的源码结构,方便构建后续的Makefile文件
+. auto/sources
+
+#$NGX_OBJS是编译过程中所有目标文件生成的路径 由--builddir=DIR参数指定,默认为./objs
+#test -d $NGX_OBJS 判断文件存在并且是目录   mkdir -p $NGX_OBJS 如果不存在则会创建
+test -d $NGX_OBJS || mkdir -p $NGX_OBJS
+
+#开始建立必要的编译文件 objs/ngx_auto_headers.h  objs/autoconf.err  objs/ngx_auto_config.h
+echo > $NGX_AUTO_HEADERS_H
+echo > $NGX_AUTOCONF_ERR
+
+#向objs/ngx_auto_config.h写入命令行带的参数 NGX_CONFIGURE在auto/options中设置
+echo "#define NGX_CONFIGURE \"$NGX_CONFIGURE\"" > $NGX_AUTO_CONFIG_H
+
+#如果开启DEBUG选项在objs
+if [ $NGX_DEBUG = YES ]; then
+    have=NGX_DEBUG . auto/have
+fi
+
+#检查操作系统参数是否支持后续编译
+# test -z检查字符串是否为空
+if test -z "$NGX_PLATFORM"; then
+    echo "checking for OS"
+
+    #uname -s 内核名称kernel name
+    NGX_SYSTEM=`uname -s 2>/dev/null`
+    #uname -r 内核版本kernel release
+    NGX_RELEASE=`uname -r 2>/dev/null`
+    #uname -m 机器硬件名称machine hardware name
+    NGX_MACHINE=`uname -m 2>/dev/null`
+
+    #屏幕输出OS名称 内核版本 32/64位
+    echo " + $NGX_SYSTEM $NGX_RELEASE $NGX_MACHINE"
+
+    NGX_PLATFORM="$NGX_SYSTEM:$NGX_RELEASE:$NGX_MACHINE";
+
+    case "$NGX_SYSTEM" in
+        MINGW32_* | MINGW64_* | MSYS_*)
+            NGX_PLATFORM=win32
+        ;;
+    esac
+
+else
+    echo "building for $NGX_PLATFORM"
+    NGX_SYSTEM=$NGX_PLATFORM
+fi
+
+#auto/cc/conf检查并设置编译器
+. auto/cc/conf
+
+#对非windows操作系统一些必要的头文件进行检查,以此决定configure后续步骤是否可以成功
+if [ "$NGX_PLATFORM" != win32 ]; then
+    . auto/headers
+fi
+
+#对当前操作系统定义一些特定的操作系统相关方法并检查当前环境是否支持
+. auto/os/conf
+
+#定义类unix操作系统中通用的头文件和系统调用等,并检查当前环境是否支持
+if [ "$NGX_PLATFORM" != win32 ]; then
+    . auto/unix
+fi
+
+. auto/threads
+#auto/modules生成ngx_modules.c文件,该文件中ngx_modules数组指明nginx运行期间哪些模块参与到请求的处理当中,包括HTTP请求可能会使用哪些模块处理,因此它对数组元素的顺序非常敏感,即绝大部分模块在ngx_modules数组中的顺序是固定的
+. auto/modules
+#auto/lib/conf检查链接期间需要链接的第三方静态库,动态库或目标文件是否存在
+. auto/lib/conf
+
+
+#处理nginx安装后的路径
+case ".$NGX_PREFIX" in
+    .)
+        NGX_PREFIX=${NGX_PREFIX:-/usr/local/nginx}
+        have=NGX_PREFIX value="\"$NGX_PREFIX/\"" . auto/define
+    ;;
+
+    .!)
+        NGX_PREFIX=
+    ;;
+
+    *)
+        have=NGX_PREFIX value="\"$NGX_PREFIX/\"" . auto/define
+    ;;
+esac
+
+#处理nginx安装后conf文件的路径
+if [ ".$NGX_CONF_PREFIX" != "." ]; then
+    have=NGX_CONF_PREFIX value="\"$NGX_CONF_PREFIX/\"" . auto/define
+fi
+
+#处理nginx安装后,二进制文件 pid 等文件的路径
+have=NGX_SBIN_PATH value="\"$NGX_SBIN_PATH\"" . auto/define
+have=NGX_CONF_PATH value="\"$NGX_CONF_PATH\"" . auto/define
+have=NGX_PID_PATH value="\"$NGX_PID_PATH\"" . auto/define
+have=NGX_LOCK_PATH value="\"$NGX_LOCK_PATH\"" . auto/define
+have=NGX_ERROR_LOG_PATH value="\"$NGX_ERROR_LOG_PATH\"" . auto/define
+
+have=NGX_HTTP_LOG_PATH value="\"$NGX_HTTP_LOG_PATH\"" . auto/define
+have=NGX_HTTP_CLIENT_TEMP_PATH value="\"$NGX_HTTP_CLIENT_TEMP_PATH\""
+. auto/define
+have=NGX_HTTP_PROXY_TEMP_PATH value="\"$NGX_HTTP_PROXY_TEMP_PATH\""
+. auto/define
+have=NGX_HTTP_FASTCGI_TEMP_PATH value="\"$NGX_HTTP_FASTCGI_TEMP_PATH\""
+. auto/define
+have=NGX_HTTP_UWSGI_TEMP_PATH value="\"$NGX_HTTP_UWSGI_TEMP_PATH\""
+. auto/define
+have=NGX_HTTP_SCGI_TEMP_PATH value="\"$NGX_HTTP_SCGI_TEMP_PATH\""
+. auto/define
+
+#auto/make创建编译时使用的Makefile文件
+. auto/make
+#auto/lib/make为objs/Makefile加入需要链接的第三方静态库,动态库或目标文件
+. auto/lib/make
+#auto/install为objs/Makefile加入install功能,当执行make install时将编译的必要文件复制到安装路径,建立必要的目录
+. auto/install
+
+# STUB auto/stubs在ngx_auto_config.h文件中指定NGX_SMP和NGX_SUPPRESS_WARN宏
+. auto/stubs
+
+#在ngx_auto_config.h文件中加入NGX_USER和NGX_GROUP宏,如果执行configure时未指定,默认两者皆为nobody(即默认以nobody用户运行进程)
+have=NGX_USER value="\"$NGX_USER\"" . auto/define
+have=NGX_GROUP value="\"$NGX_GROUP\"" . auto/define
+
+if [ ".$NGX_BUILD" != "." ]; then
+    have=NGX_BUILD value="\"$NGX_BUILD\"" . auto/define
+fi
+
+#auto/summary显示configure执行的结果,如果失败,则给出原因
+. auto/summary
+
+
+#objs/
+#|-- autoconf.err			保存configure执行过程中执行的结果
+#|-- Makefile				编译Nginx工程以及后续使用install参数安装Nginx
+#|-- ngx_auto_config.h		ngx_auto_config.h保存一些宏
+#|-- ngx_auto_headers.h		ngx_auto_headers.h保存一些宏
+#|-- ngx_modules.c			关键文件,用来定义ngx_modules数组,ngx_modules数组指明每个模块在Nginx中的优先级,当一个请求同时符合多个模块的处理规则时,将安装它们在ngx_modules数组中的顺序选择最靠前的模块优先处理.对于HTTP过滤模块而言则是相反的,因为HTTP框架在初始化时,会在ngx_modules数组中将过滤模块按先后顺序向过滤链表中添加,但每次都是添加到链表的表头,因此,对HTTP过滤模块而言,在ngx_modules数组中越是靠后的模块反而会首先处理HTTP响应
+#`-- src 					存放编译时产生的目标文件
+#	|-- core
+#	|-- event
+#	|   `-- modules
+#	|-- http
+#	|   |-- modules
+#	|   |   `-- perl
+#	|   `-- v2
+#	|-- mail
+#	|-- misc
+#	|-- os
+#	|   |-- unix
+#	|   `-- win32
+#	`-- stream
+
+# configure做了大量的生成Makefile外,还生成了ngx_modules.c文件,它决定了运行时所有模块的优先级(在编译过程中而不是编码过程中).对于不需要的模块,既不会加入ngx_modules数组,也不会编译进Nginx产品中,这也体现了轻量级的概念.
