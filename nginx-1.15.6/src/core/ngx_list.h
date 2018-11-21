@@ -13,23 +13,25 @@
 #include <ngx_core.h>
 
 
+//nginx 链表容器的封装
 typedef struct ngx_list_part_s  ngx_list_part_t;
 
+//链表的一个元素
 struct ngx_list_part_s {
-    void             *elts;
-    ngx_uint_t        nelts;
-    ngx_list_part_t  *next;
+    void             *elts;     //数组起始位置
+    ngx_uint_t        nelts;    //数组已使用的元素个数,nelts必须小于ngx_list_t中的nalloc
+    ngx_list_part_t  *next;     //下一个链表元素ngx_list_part_t的地址
 };
 
 
+//描述整个链表
 typedef struct {
-    ngx_list_part_t  *last;
-    ngx_list_part_t   part;
-    size_t            size;
-    ngx_uint_t        nalloc;
-    ngx_pool_t       *pool;
+    ngx_list_part_t  *last;     //指向链表的最后一个数组元素
+    ngx_list_part_t   part;     //链表首个数组元素
+    size_t            size;     //每个数组元素占用的空间大小
+    ngx_uint_t        nalloc;   //链表的数组元素一旦分配是不可更改的.nalloc表示每个ngx_list_part_t数组的容量,即最多存储多少个数据
+    ngx_pool_t       *pool;     //链表中管理内存分配的内存池对象.用户存放的数据占用的内存都由pool分配.
 } ngx_list_t;
-
 
 ngx_list_t *ngx_list_create(ngx_pool_t *pool, ngx_uint_t n, size_t size);
 

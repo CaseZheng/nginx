@@ -17,40 +17,41 @@ typedef void *            ngx_buf_tag_t;
 
 typedef struct ngx_buf_s  ngx_buf_t;
 
+//缓冲区结构定义
 struct ngx_buf_s {
-    u_char          *pos;
-    u_char          *last;
-    off_t            file_pos;
-    off_t            file_last;
+    u_char          *pos;           //将要处理的buf位置
+    u_char          *last;          //有效内容结束的地址
+    off_t            file_pos;      //将要处理的文件位置
+    off_t            file_last;     //截至的文件位置
 
-    u_char          *start;         /* start of buffer */
-    u_char          *end;           /* end of buffer */
-    ngx_buf_tag_t    tag;
-    ngx_file_t      *file;
-    ngx_buf_t       *shadow;
+    u_char          *start;         /* start of buffer 缓存区起始位置 */
+    u_char          *end;           /* end of buffer 缓存区结束位置 */
+    ngx_buf_tag_t    tag;           //缓冲区类型
+    ngx_file_t      *file;          //引用的文件
+    ngx_buf_t       *shadow;        //影子缓冲区 不建议使用
 
 
-    /* the buf's content could be changed */
+    /* the buf's content could be changed 临时内存标志位,为1表示数据在内存中且这段内存可以修改*/
     unsigned         temporary:1;
 
     /*
      * the buf's content is in a memory cache or in a read only memory
      * and must not be changed
+     * 为1表示数据在内存中且这段内存不可修改
      */
     unsigned         memory:1;
 
-    /* the buf's content is mmap()ed and must not be changed */
+    /* the buf's content is mmap()ed and must not be changed 为1表示该段内存由mmap系统调用映射而来,不可以被修改*/
     unsigned         mmap:1;
 
-    unsigned         recycled:1;
-    unsigned         in_file:1;
-    unsigned         flush:1;
-    unsigned         sync:1;
-    unsigned         last_buf:1;
-    unsigned         last_in_chain:1;
-
-    unsigned         last_shadow:1;
-    unsigned         temp_file:1;
+    unsigned         recycled:1;      // 为1表示可回收
+    unsigned         in_file:1;       // 为1表示这段缓冲区处理的是文件而不是内存
+    unsigned         flush:1;         // 为1表示需要进行flush操作
+    unsigned         sync:1;          // 为1表示操作这段内存使用同步方式
+    unsigned         last_buf:1;      // 为1表示是最后一块待处理的缓冲区 缓冲区可以用ngx_chain_t链表串起来
+    unsigned         last_in_chain:1; // 为1表示是ngx_chain_t的最后一块缓冲区
+    unsigned         last_shadow:1;   // 为1表示是最后一个影子缓冲区 与shadow配合使用 不建议使用
+    unsigned         temp_file:1;     // 为1表示缓冲区是临时文件
 
     /* STUB */ int   num;
 };

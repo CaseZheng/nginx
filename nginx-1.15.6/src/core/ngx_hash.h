@@ -90,10 +90,10 @@ typedef struct {
 
 
 typedef struct {
-    ngx_uint_t        hash;
-    ngx_str_t         key;
-    ngx_str_t         value;
-    u_char           *lowcase_key;
+    ngx_uint_t        hash;        // hash值 用于更快找到相同key的ngx_table_elt_t成员
+    ngx_str_t         key;         // 名字
+    ngx_str_t         value;       // 值字符串
+    u_char           *lowcase_key; // 全小写的key字符串
 } ngx_table_elt_t;
 
 

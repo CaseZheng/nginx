@@ -13,9 +13,10 @@
 #include <ngx_core.h>
 
 
+//nginx字符串的封装 有效减少内存使用量
 typedef struct {
-    size_t      len;
-    u_char     *data;
+    size_t      len;    //字符串有效长度
+    u_char     *data;   //字符串起始地址
 } ngx_str_t;
 
 

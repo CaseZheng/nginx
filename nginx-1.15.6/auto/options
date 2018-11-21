@@ -5,6 +5,7 @@
 
 help=no
 
+#安装后的根目录
 NGX_PREFIX=
 NGX_SBIN_PATH=
 NGX_MODULES_PATH=
