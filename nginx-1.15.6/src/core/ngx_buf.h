@@ -58,8 +58,8 @@ struct ngx_buf_s {
 
 
 struct ngx_chain_s {
-    ngx_buf_t    *buf;
-    ngx_chain_t  *next;
+    ngx_buf_t    *buf;  //指向当前ngx_buf_t缓冲区
+    ngx_chain_t  *next; //指向下一个ngx_chain_s
 };
 
 
